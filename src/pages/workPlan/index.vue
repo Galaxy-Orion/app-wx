@@ -4,9 +4,15 @@
  * @Description: 
 -->
 <template>
-  <AppComponent :bg="getBg" navBarName="排班安排">
+  <AppComponent
+    :bg="getBg"
+    :navBarName="curYear + '年排班安排'"
+    @titleClick="selectYear"
+  >
     <view class="work-plan" slot="content">
-      <view class="search-nav"></view>
+      <!-- <view class="search-nav">
+        <text @click="openYearPop" class="year-name">年份：{{ curYear }}</text>
+      </view> -->
       <view class="week-list">
         <view class="week-item" v-for="(item, i) in week" :key="i">
           {{ item }}
@@ -16,26 +22,40 @@
         <refresh
           refresher
           @on-refresh="refresh"
-          class="page-content"
           navbgColor="primary"
           @onScrollEnd="onScrollEnd"
-          :infiniteDisabled="infiniteDisabled"
+          ref="refreshView"
+          :infiniteDisabled="true"
         >
-          <view class="month-day" v-for="(m, i) in planList" :key="i">
-            <view class="month-title">
-              <text>{{ m.ym }}</text>
-            </view>
-            <view class="day-list">
-              <view class="month-cover">
-                {{ m.month }}
+          <view class="slot-dom" slot="content">
+            <view class="month-day" v-for="i in 12" :key="i">
+              <view class="month-title_name">
+                <text>{{ MonthList[i].ym }}</text>
               </view>
-              <view class="day-item" v-for="(day, di) in m.dayList" :key="di">
-                {{ day.day || "" }}
+              <view class="day-list">
+                <view class="month-cover">
+                  {{ MonthList[i].month }}
+                </view>
+                <view
+                  class="day-item"
+                  :class="day.type != 11 ? checkDateByValue(day) : ''"
+                  v-for="(day, di) in MonthList[i].dayList"
+                  :key="di"
+                >
+                  {{ day.day || "" }}
+                </view>
               </view>
             </view>
+            <!-- <view class="month-day" v-for="i in 12" :key="i">{{ i }}</view> -->
           </view>
         </refresh>
       </view>
+      <u-select
+        v-model="pickerVis"
+        :list="list"
+        :default-value="[1]"
+        @confirm="yearChange"
+      ></u-select>
     </view>
   </AppComponent>
 </template>
@@ -48,8 +68,17 @@ export default {
     return {
       week: ["一", "二", "三", "四", "五", "六", "日"],
       curYear: new Date().getFullYear(),
-      planList: [],
+      todayVal: "",
+      MonthList: [],
       infiniteDisabled: false,
+
+      indicatorStyle: `height: 50px;`,
+      pickerVis: false,
+      list: [
+        { value: "2020", label: "2020年" },
+        { value: "2021", label: "2021年" },
+        { value: "2022", label: "2022年" },
+      ],
     };
   },
 
@@ -62,19 +91,40 @@ export default {
     getBg() {
       return "#2cc2ff";
     },
+    checkDateByValue() {
+      return (obj) => {
+        if (obj.value < this.todayVal) {
+          return "is-past_date";
+        } else if (obj.value == this.todayVal) {
+          return "is-today";
+        }
+      };
+    },
   },
   created() {
     const y = new Date().getFullYear();
-    const arr = [];
-    for (let i = 0; i < 12; i++) {
-      arr.push({ month: i, id: i });
+    let m = new Date().getMonth() + 1;
+    let d = new Date().getDate();
+    if (m < 10) {
+      m = "0" + m;
     }
-    const dateList = this.createDate(y, arr);
-    this.planList = dateList;
+    if (d < 10) {
+      d = "0" + d;
+    }
+    this.todayVal = y + "" + m + "" + d;
+    this.createMonthList();
   },
   mounted() {},
 
   methods: {
+    createMonthList() {
+      const arr = [];
+      for (let i = 0; i < 12; i++) {
+        arr.push({ month: i, id: i });
+      }
+      const dateList = this.createDate(this.curYear, arr);
+      this.MonthList = dateList;
+    },
     createDate(y, arr) {
       let dateList = [];
       arr.forEach((item, o) => {
@@ -178,30 +228,13 @@ export default {
       return obj;
     },
     refresh({ complete }) {
-      const minYear = parseInt(new Date().getFullYear()) - 5;
-      console.log(minYear);
-      if (this.curYear > minYear) {
-        const arr = [];
-        for (let i = 0; i < 12; i++) {
-          arr.push({ month: i, id: i });
-        }
-        this.curYear = this.curYear - 1;
-        const dateList = this.createDate(this.curYear, arr);
-        this.planList = dateList.concat(this.planList);
-      } else {
-        uni.showModal({
-          title: "",
-          content: `只支持查看5年之前的安排！`,
-          showCancel: false,
-        });
-      }
-
+      this.createMonthList();
       let timer = setTimeout(() => {
         clearTimeout(timer);
         complete(); // 结束下拉刷新
       }, 0);
     },
-    onScrollEnd() {
+    onScrollEnd(callBack) {
       const maxYear = parseInt(new Date().getFullYear()) + 1;
       if (this.curYear < maxYear) {
         this.curYear = parseInt(this.curYear) + parseInt(1);
@@ -210,10 +243,23 @@ export default {
           arr.push({ month: i, id: i });
         }
         const dateList = this.createDate(this.curYear, arr);
-        this.planList = this.planList.concat(dateList);
+        // this.MonthList = this.MonthList.concat(dateList);
+        this.MonthList = dateList;
+        let isEnd = this.curYear == maxYear;
+        this.$nextTick(() => {
+          callBack && callBack(isEnd, true);
+        }, 100);
       } else {
         this.infiniteDisabled = true;
       }
+    },
+    selectYear() {
+      this.pickerVis = true;
+    },
+    yearChange(arr) {
+      this.pickerVis = false;
+      this.curYear = arr[0].value;
+      this.createMonthList();
     },
   },
 };
@@ -221,6 +267,8 @@ export default {
 <style lang="less" scoped>
 @color: #dcdcdc;
 @color2: #f3f3f3;
+@color3: #2cc2ff;
+@color4: #adadad;
 .work-plan {
   width: 100%;
   height: 100%;
@@ -249,14 +297,14 @@ export default {
 }
 .plan-list {
   width: 100%;
-  height: calc(100% - 100px);
+  height: calc(100% - 40px);
   // padding: 10px 0;
   overflow: hidden;
 
   .month-day {
     width: 100%;
-
-    .month-title {
+    // min-height: 600px; //临时测试
+    .month-title_name {
       width: 100%;
       height: 30px;
       text-align: center;
@@ -297,7 +345,40 @@ export default {
     }
   }
   .month-day + .month-day {
+    // border-top: 1px solid yellow; //临时测试
     margin-top: 10px;
   }
+}
+.slot-dom {
+  width: 100%;
+}
+.picker-view {
+  width: 100%;
+  height: 300px;
+  // margin-top: 20rpx;
+  .item {
+    line-height: 50px;
+    height: 50px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+}
+.pop-dialog {
+  width: 100%;
+  background: #fff;
+}
+.cl {
+  width: 100%;
+  height: 200px;
+  text-align: center;
+  line-height: 200px;
+}
+.is-past_date {
+  color: @color4;
+}
+.is-today {
+  background: @color3;
+  color: #fff;
 }
 </style>
