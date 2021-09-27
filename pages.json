@@ -1,0 +1,38 @@
+{
+  "easycom": {
+    "^u-(.*)": "uview-ui/components/u-$1/u-$1.vue"
+  },
+  "pages": [
+    {
+      "path": "pages/index/index"
+    },
+    {
+      "path": "pages/demo"
+    },
+    {
+      "path": "pages/demo2"
+    },
+
+    {
+      "path": "pages/detail/detail"
+    },
+    {
+      "path": "pages/refreshDemo"
+    },
+    {
+      "path": "pages/taskList/index"
+    },
+    {
+      "path": "pages/workPlan/index"
+    },
+    {
+      "path": "pages/salaryInfo/index"
+    }
+  ],
+  "globalStyle": {
+    "navigationStyle": "custom"
+    // "navigationBarTitleText": "uni-app",
+    // "navigationBarBackgroundColor": "#f8f8f8",
+    // "backgroundColor": "#f8f8f8"
+  }
+}
